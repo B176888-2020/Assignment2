@@ -44,8 +44,8 @@ os.system("esearch -db protein -query '" +
 # Determine, and plot the level of conservation
 os.makedirs("./figures")
 os.system("clustalo --force -i ./data/proSeq.fa -o ./data/proSeqAligned.fa --outfmt=fa --maxnumseq 1000 --threads 12")
-os.system("plotcon -sformat fasta ./data/proSeqAligned.fa -graph png -goutfile similarity -gdirectory ./figures")
-os.system("eog ./figures/similarity.1.png")
+os.system("plotcon -sformat fasta ./data/proSeqAligned.fa -graph svg -goutfile similarity -gdirectory ./figures")
+os.system("eog ./figures/similarity.svg")
 
 # Scan protein sequence(s) of interest with motifs from the PROSITE database
 os.makedirs("./motifResults")
