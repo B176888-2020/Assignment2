@@ -18,7 +18,11 @@ import re
 # `inputCheck` function is used to check and extract data from the inputs parameters
 def inputCheck(proFamilyx, taxGroupx, spOrId = None, proSelection=None):
     # The function used to check the data type and extract data from inputs
+    global lsproSelection, lsSpOrId
+
     def extract_data(proFamilys):
+        if re.search('\[', proFamilys):
+            proFamilys = proFamilys.strip('[]').split(',')
         if type(proFamilys) == str:
             if re.search(".txt", proFamilys):
                 fileProFamilys = open(proFamilys, "r")
@@ -40,22 +44,30 @@ def inputCheck(proFamilyx, taxGroupx, spOrId = None, proSelection=None):
     # Extract the inputs and continue pairwise check
     lsProFamilys = extract_data(proFamilyx)
     lsTaxGroups = extract_data(taxGroupx)
+    if spOrId is not None:
+        lsSpOrId = extract_data(spOrId)
+    else:
+        lsSpOrId = None
+    if proSelection is not None:
+        lsproSelection = extract_data(proSelection)
+    else:
+        lsproSelection = None
 
     # Check if the datatype is pairwise
     if type(lsProFamilys) == type(lsTaxGroups):
         if type(lsProFamilys) == list:
             if len(lsProFamilys) != len(lsTaxGroups):
-                exit("Error: The length of the protein families and taxonomy groups are not the same. \n" +
+                exit("\nError: The length of the protein families and taxonomy groups are not the same. \n" +
                      "Please check if your inputs have the pairwise protein families and taxonomy groups.")
     else:
-        exit("Error: The data type of protein family and taxonomy group is different. \n " +
+        exit("\nError: The data type of protein family and taxonomy group is different. \n " +
              "Please check if your inputs are both lists or strings")
 
-    return [lsProFamilys, lsTaxGroups]
+    return lsProFamilys, lsTaxGroups, lsSpOrId, lsproSelection
 
 
 # `protree` function is used to analyse the conservation level of each protein family and taxonomy group
-def protree(proFamily, taxGroup):
+def protree(proFamily, taxGroup, spOrId = None, proSelection=None):
     # Get the primary protein sequence by `esearch` and `edirect`
     os.makedirs("./data", exist_ok=True)
     os.system("esearch -db protein -query '" +
@@ -68,8 +80,8 @@ def protree(proFamily, taxGroup):
     # TODO: Summary the basic information of the sequences and report to the user
     # TODO: Checkpoint: inspect the data and check unusual data. Let user decide if they need to continue the process.
     # When the sequences is larger than the
-    print("\nThere are " + str(proSeqCount) + " protein sequences of the protein family " + proFamily +
-          "in the taxonomy group" + taxGroup + ". \n")
+    print("\nThere are " + str(proSeqCount) + " protein sequences of the protein family: " + proFamily +
+          " in the taxonomy group: " + taxGroup + ". \n")
 
     if proSeqCount > 1000:
         proSeqCountReply = input("\nThe recommended number of sequences should be less than 1000, " +
@@ -100,7 +112,7 @@ def protree(proFamily, taxGroup):
             else:
                 subprocess.call("pullseq -i ./data/proSeq.fa -n " + idList + " > ./data/proSeqS.fa", shell=True)
         else:
-            exit("Error: The txt file containing the ID is not found.")
+            exit("\nError: The txt file containing the ID is not found.")
 
     # Select the sequences by species or protein id.
     proSeqCountReplyPrune = input(
@@ -142,8 +154,9 @@ def protree(proFamily, taxGroup):
             id2seq("./data/sproID.txt", modePrune)
         elif re.search("EXIT", modePrune):
             print("The selection process has been skipped.")
+            subprocess.call("cp ./data/proSeq.fa ./data/proSeqN.fa", shell=True)
         else:
-            exit("Error: The command doesn't meet the requirement above. Please try again.")
+            exit("\nError: The command doesn't meet the requirement above. Please try again.")
     elif proSeqCountReplyPrune == "NO":
         subprocess.call("cp ./data/proSeq.fa ./data/proSeqN.fa", shell=True)
 
@@ -169,7 +182,7 @@ def protree(proFamily, taxGroup):
         if seqCountReply == "NO":
             exit()
         elif seqCountReply == "YES":
-            seqCountReply2 = input("Do you want to use the 250 most similar sequences as the input of plotcon? \n" +
+            seqCountReply2 = input("\nDo you want to use the 250 most similar sequences as the input of plotcon? \n" +
                                    "Please enter YES or NO to decide whether you need this similarity prune: \n")
             if seqCountReply2 == "YES":
                 proAlignedContent250 = '>'.join(proAlignedContent.split(">")[0:251])
@@ -220,17 +233,17 @@ elif sys.argv[1] == "-v":
 elif len(sys.argv) > 1:
     proFamilys = sys.argv[1]
     taxGroups = sys.argv[2]
+    homeSpace = "./"
+    spOrId = None
+    selectionls = None
     if len(sys.argv) > 3:
-        spOrId = sys.argv[3]
-        selectionls = sys.argv[4]  # absolute paths
-    elif:
-        spOrId = None
-        selectionls = None
+        homeSpace = sys.argv[3]
+    if len(sys.argv) > 4:
+        spOrId = sys.argv[4]
+        selectionls = sys.argv[5]  # absolute paths
 
 # Verify the input and Check whether the input values are suitable
-inputCheckResult = inputCheck(proFamilys, taxGroups)
-lsProFamilys = inputCheckResult[0]
-lsTaxGroups = inputCheckResult[1]
+lsProFamilys, lsTaxGroups, lsSpOrId, lsproSelection = inputCheck(proFamilys, taxGroups, spOrId, selectionls)
 
 # Conduct the conservation analysis
 if type(lsProFamilys) == str:
@@ -241,8 +254,16 @@ else:
     for counter in list(range(0, len(lsProFamilys))):
         proFamily = lsProFamilys[counter]
         taxGroup = lsTaxGroups[counter]
-        proSelection = selectionls[counter]
-        dirPro = "./" + str(proFamily) + "_" + str(taxGroup)
+        if lsSpOrId is not None:
+            sporid = lsSpOrId[counter]
+        else:
+            sporid = None
+        if lsproSelection is not None:
+            proSelection = lsproSelection[counter]
+        else:
+            proSelection = None
+        dirPro = homeSpace + str(proFamily) + "_" + str(taxGroup)
         os.makedirs(dirPro, exist_ok=True)
-        os.system("cd " + dirPro)
+        os.chdir(dirPro)
         protree(proFamily, taxGroup, spOrId, proSelection)
+        os.chdir(homeSpace)
