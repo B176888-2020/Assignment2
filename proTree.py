@@ -13,10 +13,10 @@ import string
 # Regex
 import re
 
+
 ################################## Functions ##################################
 # `inputCheck` function is used to check and extract data from the inputs parameters
-def inputCheck(proFamilyx, taxGroupx):
-
+def inputCheck(proFamilyx, taxGroupx, spOrId = None, proSelection=None):
     # The function used to check the data type and extract data from inputs
     def extract_data(proFamilys):
         if type(proFamilys) == str:
@@ -49,9 +49,10 @@ def inputCheck(proFamilyx, taxGroupx):
                      "Please check if your inputs have the pairwise protein families and taxonomy groups.")
     else:
         exit("Error: The data type of protein family and taxonomy group is different. \n " +
-              "Please check if your inputs are both lists or strings")
+             "Please check if your inputs are both lists or strings")
 
     return [lsProFamilys, lsTaxGroups]
+
 
 # `protree` function is used to analyse the conservation level of each protein family and taxonomy group
 def protree(proFamily, taxGroup):
@@ -123,7 +124,7 @@ def protree(proFamily, taxGroup):
                 iproID = open("./data/iproID.txt", "w")
                 lsid = idList.split(" ")
                 for proid in lsid:
-                    iproID.write(proid+"\n")
+                    iproID.write(proid + "\n")
                 iproID.close()
                 id2seq("./data/iproID.txt", modePrune)
         elif re.search("SPECIES", modePrune):
@@ -139,18 +140,22 @@ def protree(proFamily, taxGroup):
                 speciesContent = '\n'.join(speciesList.split("\\n"))
                 species2id(speciesContent, proSeqContent)
             id2seq("./data/sproID.txt", modePrune)
+        elif re.search("EXIT", modePrune):
+            print("The selection process has been skipped.")
+        else:
+            exit("Error: The command doesn't meet the requirement above. Please try again.")
     elif proSeqCountReplyPrune == "NO":
         subprocess.call("cp ./data/proSeq.fa ./data/proSeqN.fa", shell=True)
 
+    # Align the protein sequences and determine the level of conservation by distance matrix
     print("Start Analysis")
-
-    # Determine, and plot the level of conservation
     os.makedirs("./figures", exist_ok=True)
     os.system("clustalo --force --full --percent-id --maxnumseq 1000 --threads 12 -i ./data/proSeq?.fa " +
               "-o ./data/proAligned.fa --outfmt=fa --output-order=tree-order " +
               "--distmat-out=./data/proDistmat --guidetree-out=./data/proGuideTree")
 
-    # figtree -graphic PDF ./data/proSeqGuideTree test.pdf
+    # Plot the guide tree
+    os.system("figtree -graphic PDF ./data/proSeqGuideTree test.pdf")
 
     # Count the aligned sequence number in the file
     proAligned = open("./data/proAligned.fa", "r")
@@ -164,7 +169,7 @@ def protree(proFamily, taxGroup):
         if seqCountReply == "NO":
             exit()
         elif seqCountReply == "YES":
-            seqCountReply2 = input("Do you want to use the 250 most similar sequences to plotcon? \n" +
+            seqCountReply2 = input("Do you want to use the 250 most similar sequences as the input of plotcon? \n" +
                                    "Please enter YES or NO to decide whether you need this similarity prune: \n")
             if seqCountReply2 == "YES":
                 proAlignedContent250 = '>'.join(proAlignedContent.split(">")[0:251])
@@ -174,8 +179,13 @@ def protree(proFamily, taxGroup):
             elif seqCountReply2 == "NO":
                 exit()
 
+    # Use `plotcon` program to visualise the conversation level
     os.system("plotcon -sformat fasta ./data/proAligned.fa -goutfile similarity -gdirectory ./figures")
-    os.system("eog ./figures/similarity*")
+    # Ask if user want to see the pictures
+    eogReply = input("Do you want to see the visualisation results from plotcon directly? \n"
+                     "Please enter YES or NO to decide whether you need to inspect the plotcon outputs: \n")
+    if eogReply == "YES":
+        os.system("eog ./figures/similarity*")
 
     # Scan protein sequence(s) of interest with motifs from the PROSITE database
     os.makedirs("./motifResults", exist_ok=True)
@@ -210,11 +220,19 @@ elif sys.argv[1] == "-v":
 elif len(sys.argv) > 1:
     proFamilys = sys.argv[1]
     taxGroups = sys.argv[2]
+    if len(sys.argv) > 3:
+        spOrId = sys.argv[3]
+        selectionls = sys.argv[4]  # absolute paths
+    elif:
+        spOrId = None
+        selectionls = None
 
+# Verify the input and Check whether the input values are suitable
 inputCheckResult = inputCheck(proFamilys, taxGroups)
 lsProFamilys = inputCheckResult[0]
 lsTaxGroups = inputCheckResult[1]
 
+# Conduct the conservation analysis
 if type(lsProFamilys) == str:
     proFamily = lsProFamilys
     taxGroup = lsTaxGroups
@@ -223,5 +241,8 @@ else:
     for counter in list(range(0, len(lsProFamilys))):
         proFamily = lsProFamilys[counter]
         taxGroup = lsTaxGroups[counter]
-        protree(proFamily, taxGroup)
-
+        proSelection = selectionls[counter]
+        dirPro = "./" + str(proFamily) + "_" + str(taxGroup)
+        os.makedirs(dirPro, exist_ok=True)
+        os.system("cd " + dirPro)
+        protree(proFamily, taxGroup, spOrId, proSelection)
