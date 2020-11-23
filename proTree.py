@@ -68,7 +68,7 @@ def protree(proFamily, taxGroup, spOrId, proSelection, vbo):
     # Get the primary protein sequence by `esearch` and `edirect`
     os.makedirs("./data", exist_ok=True)
     os.system("esearch -db protein -query '" +
-              proFamily + "[protein] AND " + taxGroup + "[organism]' | efetch -db protein -format fasta > ./data/proSeq.fa")
+              proFamily + " AND " + taxGroup + "[organism] NOT Partial' | efetch -db protein -format fasta > ./data/proSeq.fa")
     proSeq = open("./data/proSeq.fa", "r")
     proSeqContent = proSeq.read()
     proSeq.close()
@@ -120,18 +120,18 @@ def protree(proFamily, taxGroup, spOrId, proSelection, vbo):
             exit("\nError: The txt file containing the ID is not found.")
 
     def seqSelection(ls, modePrune, spOrId):
-        if spOrId == "id":
-            if re.search('.txt', ls):
+        if str(spOrId) == "id":
+            if re.search('.txt', str(ls)):
                 id2seq(ls, modePrune)
             else:
                 iproID = open("./data/iproID.txt", "w")
-                lsid = idList.split(" ")
+                lsid = ls.split('\\t')
                 for proid in lsid:
                     iproID.write(proid + "\n")
                 iproID.close()
                 id2seq("./data/iproID.txt", modePrune)
-        elif spOrId == "sp":
-            if re.search('.txt', ls):
+        elif str(spOrId) == "sp":
+            if re.search('.txt', str(ls)):
                 species = open(ls, "r")
                 speciesContent = species.read()
                 species.close()
@@ -140,11 +140,13 @@ def protree(proFamily, taxGroup, spOrId, proSelection, vbo):
                 speciesContent = '\n'.join(ls.split("\\n"))
                 species2id(speciesContent, proSeqContent)
             id2seq("./data/sproID.txt", modePrune)
+        else:
+            print("Error: not matches")
 
     # Select the sequences by species or protein id.
     if (spOrId is None and proSelection is not None) or (proSelection is None and spOrId is not None):
         exit("Error: One of the options about protein id/species lists is not found.")
-    elif spOrId is None and proSelection is None:
+    elif (spOrId is None) and (proSelection is None):
         if vbo:
             proSeqCountReplyPrune = input(
                 "\nDo you want to select target protein in specific species to conduct further analysis? \n" +
@@ -159,7 +161,7 @@ def protree(proFamily, taxGroup, spOrId, proSelection, vbo):
                 # subprocess.call("export PATH=/localdisk/data/BPSM/Assignment2/:$PATH")
                 if re.search("ID", modePrune):
                     idList = input(
-                        "\nPlease enter the protein IDs  that you want to select for further analysis and separate them with spaces . \n" +
+                        "\nPlease enter the protein IDs  that you want to select for further analysis and separate them with \\t . \n" +
                         "If you have prepare the txt file containing protein id or species names separated by lines, you can provide the pathway of the file instead of typing them through the stdin: \n")
                     seqSelection(idList, modePrune, "id")
                 elif re.search("SP", modePrune):
@@ -176,7 +178,7 @@ def protree(proFamily, taxGroup, spOrId, proSelection, vbo):
                 subprocess.call("cp ./data/proSeq.fa ./data/proSeqN.fa", shell=True)
         else:
             subprocess.call("cp ./data/proSeq.fa ./data/proSeqN.fa", shell=True)
-    elif spOrId is not None and proSelection is not None:
+    elif (spOrId is not None) and (proSelection is not None):
         modePrune = spOrId.upper()
         seqSelection(proSelection, modePrune, spOrId)
     else:
@@ -186,7 +188,7 @@ def protree(proFamily, taxGroup, spOrId, proSelection, vbo):
     # Align the protein sequences and determine the level of conservation by distance matrix
     print("Start Analysis")
     os.makedirs("./figures", exist_ok=True)
-    os.system("clustalo --force --full --percent-id --maxnumseq 1000 --threads 12 -i ./data/proSeq?.fa " +
+    os.system("clustalo --force --full --percent-id --threads 12 -i ./data/proSeq?.fa " +
               "-o ./data/proAligned.fa --outfmt=fa --output-order=tree-order " +
               "--distmat-out=./data/proDistmat --guidetree-out=./data/proGuideTree")
 
