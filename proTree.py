@@ -411,7 +411,7 @@ def main(proFamily, taxGroup, projectSpace, lsSpOrId, lsproSelection, vbo):
 print("\n################################## proTree Activated ##################################")
 
 # esearch and efetch
-os.system("export PATH=${PATH}:$HOME/edirect >& /dev/null || setenv PATH '${PATH}:$HOME/edirect'")
+os.system("export PATH=$PATH:/localdisk/home/$USER/edirect")
 
 # Some default values for the input arguments
 projectSpace = "./"
