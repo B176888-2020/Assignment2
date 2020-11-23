@@ -410,6 +410,9 @@ def main(proFamily, taxGroup, projectSpace, lsSpOrId, lsproSelection, vbo):
 # Mark the start of the analysis process
 print("\n################################## proTree Activated ##################################")
 
+# esearch and efetch
+os.system("export PATH=${PATH}:$HOME/edirect >& /dev/null || setenv PATH '${PATH}:$HOME/edirect'")
+
 # Some default values for the input arguments
 projectSpace = "./"
 spOrId = None
