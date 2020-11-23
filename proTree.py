@@ -16,10 +16,7 @@ import re
 
 ################################## Functions ##################################
 # `inputCheck` function is used to check and extract data from the inputs parameters
-def inputCheck(proFamilyx, taxGroupx, spOrId = None, proSelection=None):
-    # The function used to check the data type and extract data from inputs
-    global lsproSelection, lsSpOrId
-
+def inputCheck(proFamilyx, taxGroupx, spOrId=None, proSelection=None):
     def extract_data(proFamilys):
         if re.search('\[', proFamilys):
             proFamilys = proFamilys.strip('[]').split(',')
@@ -67,7 +64,7 @@ def inputCheck(proFamilyx, taxGroupx, spOrId = None, proSelection=None):
 
 
 # `protree` function is used to analyse the conservation level of each protein family and taxonomy group
-def protree(proFamily, taxGroup, spOrId = None, proSelection=None):
+def protree(proFamily, taxGroup, spOrId, proSelection, vbo):
     # Get the primary protein sequence by `esearch` and `edirect`
     os.makedirs("./data", exist_ok=True)
     os.system("esearch -db protein -query '" +
@@ -76,19 +73,27 @@ def protree(proFamily, taxGroup, spOrId = None, proSelection=None):
     proSeqContent = proSeq.read()
     proSeq.close()
     proSeqCount = proSeqContent.count(">")
+
     # TODO: print the result of different id/species
-    # TODO: Summary the basic information of the sequences and report to the user
+
+    # Summary the protein properties information of the sequences and report to the user
+    os.system("pepstats -sequence ./data/proSeq.fa --outfile ./data/proSeqProperties.txt")
+
     # TODO: Checkpoint: inspect the data and check unusual data. Let user decide if they need to continue the process.
+
     # When the sequences is larger than the
     print("\nThere are " + str(proSeqCount) + " protein sequences of the protein family: " + proFamily +
           " in the taxonomy group: " + taxGroup + ". \n")
 
     if proSeqCount > 1000:
-        proSeqCountReply = input("\nThe recommended number of sequences should be less than 1000, " +
-                                 "otherwise the workload may influence the efficiency of this program. \n" +
-                                 "Please enter YES or NO to decide whether you want to continue downstream analysis: \n")
-        if proSeqCountReply == "NO":
-            exit()
+        if vbo:
+            proSeqCountReply = input("\nThe recommended number of sequences should be less than 1000, " +
+                                     "otherwise the workload may influence the efficiency of this program. \n" +
+                                     "Please enter YES or NO to decide whether you want to continue downstream analysis: \n")
+            if proSeqCountReply == "NO":
+                exit()
+        else:
+            print("\nWarning: The number of total sequences is larger than 1000.\n")
 
     # Choose the protein sequences by the sequence id or species names
     # Functions used for this section
@@ -114,24 +119,10 @@ def protree(proFamily, taxGroup, spOrId = None, proSelection=None):
         else:
             exit("\nError: The txt file containing the ID is not found.")
 
-    # Select the sequences by species or protein id.
-    proSeqCountReplyPrune = input(
-        "\nDo you want to select target protein in specific species to conduct further analysis? \n" +
-        "Please enter YES or NO to decide whether you want to select species: \n")
-    if proSeqCountReplyPrune == "YES":
-        modePrune = input(
-            "\nIf you want to use protein sequence IDs to select protein sequences, please enter ID to search \n" +
-            "If you want to use species name to select protein sequences, please enter SPECIES to search . \n" +
-            "If you want to exclude these protein IDs or species names, you can add EXCLUDE before NORMAL or SPECIES symbol. \n" +
-            "If you want to exit this prune section, you can enter EXIT to skip it. \n"
-        )
-        # subprocess.call("export PATH=/localdisk/data/BPSM/Assignment2/:$PATH")
-        if re.search("ID", modePrune):
-            idList = input(
-                "\nPlease enter the protein IDs  that you want to select for further analysis and separate them with spaces . \n" +
-                "If you have prepare the txt file containing protein id or species names separated by lines, you can provide the pathway of the file instead of typing them through the stdin: \n")
-            if re.search('.txt', idList):
-                id2seq(idList, modePrune)
+    def seqSelection(ls, modePrune, spOrId):
+        if spOrId == "id":
+            if re.search('.txt', ls):
+                id2seq(ls, modePrune)
             else:
                 iproID = open("./data/iproID.txt", "w")
                 lsid = idList.split(" ")
@@ -139,26 +130,58 @@ def protree(proFamily, taxGroup, spOrId = None, proSelection=None):
                     iproID.write(proid + "\n")
                 iproID.close()
                 id2seq("./data/iproID.txt", modePrune)
-        elif re.search("SPECIES", modePrune):
-            speciesList = input(
-                "\nPlease enter the species names that you want to select for further analysis and separate them with \\n . \n" +
-                "If you have prepare the txt file containing protein id or species names separated by lines, you can provide the pathway of the file instead of typing them through the stdin: \n")
-            if re.search('.txt', speciesList):
-                species = open(speciesList, "r")
+        elif spOrId == "sp":
+            if re.search('.txt', ls):
+                species = open(ls, "r")
                 speciesContent = species.read()
                 species.close()
                 species2id(speciesContent, proSeqContent)
             else:
-                speciesContent = '\n'.join(speciesList.split("\\n"))
+                speciesContent = '\n'.join(ls.split("\\n"))
                 species2id(speciesContent, proSeqContent)
             id2seq("./data/sproID.txt", modePrune)
-        elif re.search("EXIT", modePrune):
-            print("The selection process has been skipped.")
-            subprocess.call("cp ./data/proSeq.fa ./data/proSeqN.fa", shell=True)
+
+    # Select the sequences by species or protein id.
+    if (spOrId is None and proSelection is not None) or (proSelection is None and spOrId is not None):
+        exit("Error: One of the options about protein id/species lists is not found.")
+    elif spOrId is None and proSelection is None:
+        if vbo:
+            proSeqCountReplyPrune = input(
+                "\nDo you want to select target protein in specific species to conduct further analysis? \n" +
+                "Please enter YES or NO to decide whether you want to select species: \n")
+            if proSeqCountReplyPrune == "YES":
+                modePrune = input(
+                    "\nIf you want to use protein sequence IDs to select protein sequences, please enter ID to search \n" +
+                    "If you want to use species name to select protein sequences, please enter SP to search . \n" +
+                    "If you want to exclude these protein IDs or species names, you can add EXCLUDE before ID or SP symbol. \n" +
+                    "If you want to exit this prune section, you can enter EXIT to skip it. \n"
+                )
+                # subprocess.call("export PATH=/localdisk/data/BPSM/Assignment2/:$PATH")
+                if re.search("ID", modePrune):
+                    idList = input(
+                        "\nPlease enter the protein IDs  that you want to select for further analysis and separate them with spaces . \n" +
+                        "If you have prepare the txt file containing protein id or species names separated by lines, you can provide the pathway of the file instead of typing them through the stdin: \n")
+                    seqSelection(idList, modePrune, "id")
+                elif re.search("SP", modePrune):
+                    speciesList = input(
+                        "\nPlease enter the species names that you want to select for further analysis and separate them with \\n . \n" +
+                        "If you have prepare the txt file containing protein id or species names separated by lines, you can provide the pathway of the file instead of typing them through the stdin: \n")
+                    seqSelection(speciesList, modePrune, "sp")
+                elif re.search("EXIT", modePrune):
+                    print("The selection process has been skipped.")
+                    subprocess.call("cp ./data/proSeq.fa ./data/proSeqN.fa", shell=True)
+                else:
+                    exit("\nError: The command doesn't meet the requirement above. Please try again.")
+            elif proSeqCountReplyPrune == "NO":
+                subprocess.call("cp ./data/proSeq.fa ./data/proSeqN.fa", shell=True)
         else:
-            exit("\nError: The command doesn't meet the requirement above. Please try again.")
-    elif proSeqCountReplyPrune == "NO":
-        subprocess.call("cp ./data/proSeq.fa ./data/proSeqN.fa", shell=True)
+            subprocess.call("cp ./data/proSeq.fa ./data/proSeqN.fa", shell=True)
+    elif spOrId is not None and proSelection is not None:
+        modePrune = spOrId.upper()
+        seqSelection(proSelection, modePrune, spOrId)
+    else:
+        exit("\nError: The options choosing species or protein id to select sequences doesn't meet the requirements. \n" +
+             " Please check your input and try again.")
 
     # Align the protein sequences and determine the level of conservation by distance matrix
     print("Start Analysis")
@@ -167,38 +190,67 @@ def protree(proFamily, taxGroup, spOrId = None, proSelection=None):
               "-o ./data/proAligned.fa --outfmt=fa --output-order=tree-order " +
               "--distmat-out=./data/proDistmat --guidetree-out=./data/proGuideTree")
 
+    # Summarise the aligned data information
+    if vbo:
+        infoalign_reply = input("\nDo you want to get the protein seqence information?")
+        if infoalign_reply == "YES":
+            os.system("infoalign -sequence ./data/proAligned.fa -outfile ./data/proInfoAlign.infoalign")
+        elif infoalign_reply == "NO":
+            print("\nSkip the process of ")
+    else:
+        os.system("infoalign -sequence ./data/proAligned.fa -outfile ./data/proInfoAlign.infoalign")
+
     # Plot the guide tree
-    os.system("figtree -graphic PDF ./data/proSeqGuideTree test.pdf")
+    if vbo:
+        guidetree_reply = input("\nDo you want to plot the guide tree?")
+        if guidetree_reply == "YES":
+            os.system("figtree -graphic PDF ./data/proGuideTree ./figures/guide_tree.pdf")
+        elif guidetree_reply == "NO":
+            print("\nSkip the process of ")
+    else:
+        os.system("figtree -graphic PDF ./data/proGuideTree ./figures/guide_tree.pdf")
+        print("Successful")
 
     # Count the aligned sequence number in the file
+    def seq250(proAlignedContent):
+        proAlignedContent250 = '>'.join(proAlignedContent.split(">")[0:251])
+        proAlignedPrune = open("./data/proAligned.fa", "w")
+        proAlignedPrune.write(proAlignedContent250)
+        proAlignedPrune.close()
+
     proAligned = open("./data/proAligned.fa", "r")
     proAlignedContent = proAligned.read()
     seqCount = proAlignedContent.count(">")
     proAligned.close()
-    if seqCount > 250:
-        seqCountReply = input("\nThere are " + str(seqCount) + " sequences in the sequence aligned file. \n" +
-                              "It may influence further analysis if the number of sequences are more than 250. \n " +
-                              "Please enter YES or NO to decide whether you want to continue the downstream analysis: \n")
-        if seqCountReply == "NO":
-            exit()
-        elif seqCountReply == "YES":
-            seqCountReply2 = input("\nDo you want to use the 250 most similar sequences as the input of plotcon? \n" +
-                                   "Please enter YES or NO to decide whether you need this similarity prune: \n")
-            if seqCountReply2 == "YES":
-                proAlignedContent250 = '>'.join(proAlignedContent.split(">")[0:251])
-                proAlignedPrune = open("./data/proAligned.fa", "w")
-                proAlignedPrune.write(proAlignedContent250)
-                proAlignedPrune.close()
-            elif seqCountReply2 == "NO":
+    if vbo:
+        if seqCount > 250:
+            seqCountReply = input("\nThere are " + str(seqCount) + " sequences in the sequence aligned file. \n" +
+                                  "It may influence further analysis if the number of sequences are more than 250. \n " +
+                                  "Please enter YES or NO to decide whether you want to continue the downstream analysis: \n")
+            if seqCountReply == "NO":
                 exit()
+            elif seqCountReply == "YES":
+                seqCountReply2 = input(
+                    "\nDo you want to use the 250 most similar sequences as the input of plotcon? \n" +
+                    "Please enter YES or NO to decide whether you need this similarity prune: \n")
+                if seqCountReply2 == "YES":
+                    seq250(proAlignedContent)
+                elif seqCountReply2 == "NO":
+                    exit()
+    else:
+        seq250(proAlignedContent)
 
     # Use `plotcon` program to visualise the conversation level
-    os.system("plotcon -sformat fasta ./data/proAligned.fa -goutfile similarity -gdirectory ./figures")
+
     # Ask if user want to see the pictures
-    eogReply = input("Do you want to see the visualisation results from plotcon directly? \n"
-                     "Please enter YES or NO to decide whether you need to inspect the plotcon outputs: \n")
-    if eogReply == "YES":
-        os.system("eog ./figures/similarity*")
+    if vbo:
+        os.system("plotcon -sformat fasta ./data/proAligned.fa -sprotein1 Yes -goutfile similarity -gdirectory ./figures")
+        eogReply = input("Do you want to see the visualisation results from plotcon directly? \n"
+                         "Please enter YES or NO to decide whether you need to inspect the plotcon outputs: \n")
+        if eogReply == "YES":
+            os.system("eog ./figures/similarity*")
+    else:
+        os.system("plotcon -sformat fasta ./data/proAligned.fa -sprotein1 Yes -goutfile similarity -gdirectory ./figures -winsize 4 -graph png")
 
     # Scan protein sequence(s) of interest with motifs from the PROSITE database
     os.makedirs("./motifResults", exist_ok=True)
@@ -207,12 +259,24 @@ def protree(proFamily, taxGroup, spOrId = None, proSelection=None):
     motifsReport = open("./motifResults/motifReport", "r")
     motifsReportContent = motifsReport.read()
     motifsReport.close()
-    print("\n".join(element for element in motifsReportContent.split("\n") if 'Motif = ' in element))
+    motifs = "\n".join(element for element in motifsReportContent.split("\n") if 'Motif = ' in element)
 
-    # Output the result
+# The analysing section for every input
+def main(proFamily, taxGroup, projectSpace, lsSpOrId, lsproSelection, vbo):
+    dirPro = projectSpace + str(proFamily) + "_" + str(taxGroup)
+    os.makedirs(dirPro, exist_ok=True)
+    os.chdir(dirPro)
+    protree(proFamily, taxGroup, lsSpOrId, lsproSelection, vbo)
+    os.chdir(projectSpace)
 
 
 ################################## Main program ##################################
+# Some default value for the arguments
+projectSpace = "./"
+spOrId = None
+selectionls = None
+vbo = True
+
 # Get proper inputs from users
 if len(sys.argv) == 1:
     reply = input("Protein family and taxonomic group are needed for proTree.py. \n" +
@@ -227,20 +291,29 @@ if len(sys.argv) == 1:
     elif reply == "-v":
         proFamilys = input("Please enter the protein family: \n")
         taxGroups = input("Please enter the taxonomic group: \n")
-elif sys.argv[1] == "-v":
-    proFamilys = input("Please enter the protein family: \n")
-    taxGroups = input("Please enter the taxonomic group: \n")
 elif len(sys.argv) > 1:
-    proFamilys = sys.argv[1]
-    taxGroups = sys.argv[2]
-    homeSpace = "./"
-    spOrId = None
-    selectionls = None
-    if len(sys.argv) > 3:
-        homeSpace = sys.argv[3]
-    if len(sys.argv) > 4:
-        spOrId = sys.argv[4]
-        selectionls = sys.argv[5]  # absolute paths
+    if sys.argv[1] == "-v" or sys.argv[1] == "-s":
+        if sys.argv[1] == "-v":
+            vbo = True
+        elif sys.argv[1] == "-s":
+            vbo = False
+        proFamilys = sys.argv[2]
+        taxGroups = sys.argv[3]
+        if len(sys.argv) > 3:
+            projectSpace = sys.argv[4]
+        if len(sys.argv) > 5:
+            spOrId = sys.argv[5]
+        if len(sys.argv) > 6:
+            selectionls = sys.argv[6]  # absolute paths
+    else:
+        proFamilys = sys.argv[1]
+        taxGroups = sys.argv[2]
+        if len(sys.argv) > 3:
+            projectSpace = sys.argv[3]
+        if len(sys.argv) > 4:
+            spOrId = sys.argv[4]
+        if len(sys.argv) > 5:
+            selectionls = sys.argv[5]  # absolute paths
 
 # Verify the input and Check whether the input values are suitable
 lsProFamilys, lsTaxGroups, lsSpOrId, lsproSelection = inputCheck(proFamilys, taxGroups, spOrId, selectionls)
@@ -249,8 +322,8 @@ lsProFamilys, lsTaxGroups, lsSpOrId, lsproSelection = inputCheck(proFamilys, tax
 if type(lsProFamilys) == str:
     proFamily = lsProFamilys
     taxGroup = lsTaxGroups
-    protree(proFamily, taxGroup)
-else:
+    main(proFamily, taxGroup, projectSpace, lsSpOrId, lsproSelection, vbo)
+elif type(lsProFamilys) == list:
     for counter in list(range(0, len(lsProFamilys))):
         proFamily = lsProFamilys[counter]
         taxGroup = lsTaxGroups[counter]
@@ -262,8 +335,4 @@ else:
             proSelection = lsproSelection[counter]
         else:
             proSelection = None
-        dirPro = homeSpace + str(proFamily) + "_" + str(taxGroup)
-        os.makedirs(dirPro, exist_ok=True)
-        os.chdir(dirPro)
-        protree(proFamily, taxGroup, spOrId, proSelection)
-        os.chdir(homeSpace)
+        main(proFamily, taxGroup, projectSpace, sporid, proSelection, vbo)
