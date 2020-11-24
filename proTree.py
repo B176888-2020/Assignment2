@@ -447,7 +447,7 @@ def protree(proFamily, taxGroup, spOrId, proSelection, vbo):
     else:
         hth(proHthContent)
         print("Done.  The output will been stored in ./motifResults2/n2p.hth\n")
-    print("\n The Data Process for " + proFamily + " and " + taxGroup + ": Finish.")
+    print("\nFinish: " + proFamily + " and " + taxGroup)
 
 # The major analysis process for every pair/group of inputs
 def main(proFamily, taxGroup, projectSpace, lsSpOrId, lsproSelection, vbo):
@@ -468,11 +468,7 @@ def main(proFamily, taxGroup, projectSpace, lsSpOrId, lsproSelection, vbo):
 
 ################################## Main program ##################################
 
-# server: PATH for esearch and efetch
-os.system("echo \"\nexport PATH=$PATH:/localdisk/home/$USER/edirect/\" >> $HOME/.bashrc")
-os.system("echo \"\nexport PATH=$PATH:/localdisk/data/BPSM/Assignment2/\" >> $HOME/.bashrc")
-os.system("source $HOME/.bashrc")
-
+# Server environment config: PATH for esearch, efetch and pullseq
 # Some default values for the input arguments
 projectSpace = "./"
 spOrId = None
