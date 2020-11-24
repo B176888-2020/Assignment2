@@ -221,7 +221,7 @@ def protree(proFamily, taxGroup, spOrId, proSelection, vbo):
                     "If you want to skip this selection process, you can enter SKIP to skip it. \n"
                 )
                 modePrune = modePrune.upper()
-                subprocess.call("export PATH=/localdisk/data/BPSM/Assignment2/:$PATH")
+
                 if re.search("ID", modePrune):
                     idList = input(
                         "\nPlease enter the protein IDs that you want to select for further analysis and separate them with \\t . \n" +
@@ -469,7 +469,9 @@ def main(proFamily, taxGroup, projectSpace, lsSpOrId, lsproSelection, vbo):
 ################################## Main program ##################################
 
 # server: PATH for esearch and efetch
-os.system("echo \"export PATH=$PATH:/localdisk/home/$USER/edirect\" >> $HOME/.bashrc")
+os.system("echo \"\nexport PATH=$PATH:/localdisk/home/$USER/edirect/\" >> $HOME/.bashrc")
+os.system("echo \"\nexport PATH=$PATH:/localdisk/data/BPSM/Assignment2/\" >> $HOME/.bashrc")
+os.system("source $HOME/.bashrc")
 
 # Some default values for the input arguments
 projectSpace = "./"
