@@ -469,6 +469,11 @@ def main(proFamily, taxGroup, projectSpace, lsSpOrId, lsproSelection, vbo):
 ################################## Main program ##################################
 
 # Server environment config: PATH for esearch, efetch and pullseq
+# Tips: But it seems that because the subprocess export command will be refreshed. Thus it is more recommaned to use bash to export PATH
+# Error: If I export the PATH from here, the .bashrc will recieve a strange code rather than these lines.
+# os.system("export PATH=$PATH:/localdisk/home/$USER/edirect/")
+# os.system("export PATH=$PATH:/localdisk/data/BPSM/Assignment2/")
+
 # Some default values for the input arguments
 projectSpace = "./"
 spOrId = None
